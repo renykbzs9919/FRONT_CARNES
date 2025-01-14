@@ -47,8 +47,8 @@ interface Proveedor {
 
 interface ProductoCompra {
   productoId: Producto;
-  cantidad: number;
-  precio: number;
+  cantidad: number | "";
+  precio: number | "";
   subtotal: number;
   _id: string;
 }
@@ -102,7 +102,7 @@ export default function ComprasPage() {
     proveedorId: "",
     productos: [] as ProductoCompra[],
     fechaCompra: getCurrentDate(),
-    pago: 0,
+    pago: "" as number | "",
   });
   const [newPayment, setNewPayment] = useState({
     proveedorId: "",
@@ -184,7 +184,15 @@ export default function ComprasPage() {
       setIsAddingCompra(false);
       return;
     }
-    if (newCompra.productos.some((p) => p.cantidad <= 0 || p.precio <= 0)) {
+    if (
+      newCompra.productos.some(
+        (p) =>
+          p.cantidad === "" ||
+          p.precio === "" ||
+          parseFloat(p.cantidad as unknown as string) <= 0 ||
+          parseFloat(p.precio as unknown as string) <= 0
+      )
+    ) {
       showAlert(
         "La cantidad y el precio de los productos deben ser mayores que cero.",
         "error"
@@ -192,9 +200,11 @@ export default function ComprasPage() {
       setIsAddingCompra(false);
       return;
     }
+    const pagoNum = parseFloat(newCompra.pago as string);
     if (
-      newCompra.pago < 0 ||
-      newCompra.pago > calculateTotal(newCompra.productos)
+      isNaN(pagoNum) ||
+      pagoNum < 0 ||
+      pagoNum > calculateTotal(newCompra.productos)
     ) {
       showAlert(
         "El pago inicial no puede ser negativo ni exceder el total de la compra.",
@@ -209,7 +219,10 @@ export default function ComprasPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newCompra),
+          body: JSON.stringify({
+            ...newCompra,
+            pago: parseFloat(newCompra.pago as string),
+          }),
         }
       );
       if (!response.ok) {
@@ -221,7 +234,7 @@ export default function ComprasPage() {
         proveedorId: "",
         productos: [],
         fechaCompra: getCurrentDate(),
-        pago: 0,
+        pago: "",
       });
       showAlert("Compra registrada exitosamente.", "success");
     } catch (error) {
@@ -311,8 +324,8 @@ export default function ComprasPage() {
         ...prev.productos,
         {
           productoId: producto,
-          cantidad: 1,
-          precio: 0,
+          cantidad: "",
+          precio: "",
           subtotal: 0,
           _id: "",
         },
@@ -330,18 +343,25 @@ export default function ComprasPage() {
   const handleProductChange = (
     index: number,
     field: "cantidad" | "precio",
-    value: number
+    value: string
   ) => {
     setNewCompra((prev) => ({
       ...prev,
       productos: prev.productos.map((producto, i) => {
         if (i === index) {
+          const numValue = value === "" ? "" : parseFloat(value);
           const updatedProducto = {
             ...producto,
-            [field]: Math.max(0.01, value),
+            [field]:
+              value === ""
+                ? ""
+                : typeof numValue === "number" && numValue > 0
+                ? numValue
+                : "",
           };
           updatedProducto.subtotal =
-            updatedProducto.cantidad * updatedProducto.precio;
+            (parseFloat(updatedProducto.cantidad as string) || 0) *
+            (parseFloat(updatedProducto.precio as string) || 0);
           return updatedProducto;
         }
         return producto;
@@ -369,11 +389,11 @@ export default function ComprasPage() {
                 <Plus className="mr-2 h-4 w-4" /> Nueva Compra
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
+            <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+              <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
                 <DialogTitle>Registrar Nueva Compra</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAddCompra} className="space-y-4">
+              <form onSubmit={handleAddCompra} className="space-y-4 py-2">
                 <div>
                   <Label htmlFor="proveedor">Proveedor</Label>
                   <Select
@@ -414,11 +434,14 @@ export default function ComprasPage() {
                   {newCompra.productos.map((producto, index) => (
                     <div
                       key={index}
-                      className="flex items-center space-x-2 mb-2"
+                      className="grid grid-cols-1 sm:grid-cols-[2fr,1fr,1fr,1fr,auto] gap-4 items-end mb-4 p-4 border rounded-lg"
                     >
-                      <span>{producto.productoId.nombre}</span>
+                      <div>
+                        <Label>Producto</Label>
+                        <p className="mt-2">{producto.productoId.nombre}</p>
+                      </div>
 
-                      <div className="flex flex-col">
+                      <div>
                         <Label htmlFor={`cantidad-${index}`}>Cantidad</Label>
                         <Input
                           id={`cantidad-${index}`}
@@ -428,47 +451,66 @@ export default function ComprasPage() {
                             handleProductChange(
                               index,
                               "cantidad",
-                              parseFloat(e.target.value)
+                              e.target.value
                             )
                           }
-                          placeholder="Cantidad"
-                          className="w-20"
+                          onBlur={(e) => {
+                            if (
+                              e.target.value === "" ||
+                              parseFloat(e.target.value) <= 0
+                            ) {
+                              handleProductChange(index, "cantidad", "");
+                            }
+                          }}
                           min="0.01"
                           step="0.01"
+                          className="mt-2"
                         />
                       </div>
 
-                      <div className="flex flex-col">
+                      <div>
                         <Label htmlFor={`precio-${index}`}>Precio</Label>
                         <Input
                           id={`precio-${index}`}
                           type="number"
                           value={producto.precio}
                           onChange={(e) =>
-                            handleProductChange(
-                              index,
-                              "precio",
-                              parseFloat(e.target.value)
-                            )
+                            handleProductChange(index, "precio", e.target.value)
                           }
-                          placeholder="Precio"
-                          className="w-20"
+                          onBlur={(e) => {
+                            if (
+                              e.target.value === "" ||
+                              parseFloat(e.target.value) <= 0
+                            ) {
+                              handleProductChange(index, "precio", "");
+                            }
+                          }}
                           min="0.01"
                           step="0.01"
+                          className="mt-2"
                         />
                       </div>
-                      <span>Subtotal: Bs.{producto.subtotal.toFixed(2)}</span>
+
+                      <div>
+                        <Label>Subtotal</Label>
+                        <p className="mt-2 font-medium">
+                          Bs.{producto.subtotal.toFixed(2)}
+                        </p>
+                      </div>
+
                       <Button
                         type="button"
                         variant="destructive"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleRemoveProductFromCompra(index)}
+                        className="h-10 w-10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
                   <Select
+                    value=""
                     onValueChange={(value) => {
                       const producto = productos.find((p) => p._id === value);
                       if (producto) {
@@ -477,7 +519,7 @@ export default function ComprasPage() {
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Agregar producto" />
+                      <SelectValue placeholder="Agregar otro producto" />
                     </SelectTrigger>
                     <SelectContent>
                       {productos.map((producto) => (
@@ -495,11 +537,15 @@ export default function ComprasPage() {
                     type="number"
                     value={newCompra.pago}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value);
+                      const value = e.target.value;
+                      const numValue = value === "" ? 0 : parseFloat(value);
                       const total = calculateTotal(newCompra.productos);
                       setNewCompra({
                         ...newCompra,
-                        pago: Math.min(Math.max(0, value), total),
+                        pago:
+                          value === ""
+                            ? ""
+                            : Math.min(Math.max(0, numValue), total),
                       });
                     }}
                     min="0"
@@ -515,17 +561,20 @@ export default function ComprasPage() {
                   <p>
                     Saldo: Bs.
                     {(
-                      calculateTotal(newCompra.productos) - newCompra.pago
+                      calculateTotal(newCompra.productos) -
+                      (parseFloat(newCompra.pago as string) || 0)
                     ).toFixed(2)}
                   </p>
                 </div>
-                <Button
-                  type="submit"
-                  className="w-full mb-5"
-                  disabled={isAddingCompra}
-                >
-                  {isAddingCompra ? "Registrando..." : "Registrar Compra"}
-                </Button>
+                <div className="sticky bottom-0 bg-background pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isAddingCompra}
+                  >
+                    {isAddingCompra ? "Registrando..." : "Registrar Compra"}
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -792,7 +841,10 @@ export default function ComprasPage() {
                     <li key={index}>
                       {producto.productoId.nombre} - Cantidad:{" "}
                       {producto.cantidad}, Precio: Bs.
-                      {producto.precio.toFixed(2)}, Subtotal: Bs.
+                      {typeof producto.precio === "number"
+                        ? producto.precio.toFixed(2)
+                        : producto.precio}
+                      , Subtotal: Bs.
                       {producto.subtotal.toFixed(2)}
                     </li>
                   ))}
