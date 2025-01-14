@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
 import { generatePDF } from "@/utils/pdfGenerator";
 import { generateCSV } from "@/utils/csvGenerator";
+import { LoadingSpinner } from "@/components/LoadingSpinner"; // Import LoadingSpinner
 
 interface DashboardSummary {
   ventas: {
@@ -77,12 +78,14 @@ export default function DashboardPage() {
   const [filtroDia, setFiltroDia] = useState(getCurrentDate());
   const [filtroMes, setFiltroMes] = useState(getCurrentDate().substring(0, 7));
   const [filtroAño, setFiltroAño] = useState(getCurrentDate().substring(0, 4));
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
 
   useEffect(() => {
     fetchDashboardData();
   }, [filtroTipo, filtroDia, filtroMes, filtroAño]);
 
   const fetchDashboardData = async () => {
+    setIsLoading(true); // Set loading to true before fetching data
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL;
       const params = new URLSearchParams();
@@ -130,10 +133,14 @@ export default function DashboardPage() {
       );
       const purchasesData = await purchasesResponse.json();
       setSuppliersToPayment(
-        purchasesData.filter((purchase: { saldo: number }) => purchase.saldo > 0)
+        purchasesData.filter(
+          (purchase: { saldo: number }) => purchase.saldo > 0
+        )
       );
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+    } finally {
+      setIsLoading(false); // Set loading to false after fetching data, regardless of success or failure
     }
   };
 
@@ -164,6 +171,7 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 w-full min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {isLoading && <LoadingSpinner />} {/* Add LoadingSpinner */}
         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
           <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
           <div className="flex items-center space-x-4">
@@ -182,7 +190,6 @@ export default function DashboardPage() {
             </Button>
           </div>
         </div>
-
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filtros</CardTitle>
@@ -245,7 +252,6 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
         {summary && (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -368,7 +374,6 @@ export default function DashboardPage() {
             </Card>
           </div>
         )}
-
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-1 md:col-span-2 lg:col-span-4">
             <CardHeader>
@@ -387,7 +392,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -406,7 +410,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
         <Card>
           <CardHeader>
             <CardTitle>Inventario</CardTitle>

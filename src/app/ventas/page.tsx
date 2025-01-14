@@ -30,6 +30,7 @@ import {
 import { ShoppingBag, Trash2, Plus, DollarSign, Eye } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import { showAlert } from "@/utils/alerts";
+import { LoadingSpinner } from "@/components/LoadingSpinnerGuardar";
 
 interface Producto {
   _id: string;
@@ -110,6 +111,9 @@ export default function VentasPage() {
     fechaPago: getCurrentDate(),
   });
   const [clientesConDeuda, setClientesConDeuda] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAddingVenta, setIsAddingVenta] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
 
   useEffect(() => {
     fetchVentas();
@@ -207,6 +211,7 @@ export default function VentasPage() {
       );
       return;
     }
+    setIsAddingVenta(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/ventas`,
@@ -234,6 +239,8 @@ export default function VentasPage() {
         "Error al agregar la venta. Por favor, intente de nuevo.",
         "error"
       );
+    } finally {
+      setIsAddingVenta(false);
     }
   };
 
@@ -260,6 +267,7 @@ export default function VentasPage() {
       return;
     }
 
+    setIsAddingPayment(true);
     try {
       const paymentData = {
         clienteId: newPayment.clienteId,
@@ -296,6 +304,8 @@ export default function VentasPage() {
         "Error al registrar el pago. Por favor, intente de nuevo.",
         "error"
       );
+    } finally {
+      setIsAddingPayment(false);
     }
   };
 
@@ -352,343 +362,395 @@ export default function VentasPage() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Ventas</h1>
-        <div className="flex items-center space-x-4">
-          <ShoppingBag className="h-8 w-8" />
+    <>
+      {(isAddingVenta || isAddingPayment) && <LoadingSpinner />}
+      <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Ventas</h1>
+          <div className="flex items-center space-x-4">
+            <ShoppingBag className="h-8 w-8" />
+          </div>
         </div>
-      </div>
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Gestión de Ventas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="mb-5">
-                <Plus className="mr-2 h-4 w-4" /> Nueva Venta
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Registrar Nueva Venta</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddVenta} className="space-y-4">
-                <div>
-                  <Label htmlFor="cliente">Cliente</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setNewVenta({ ...newVenta, clienteId: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes.map((cliente) => (
-                        <SelectItem key={cliente._id} value={cliente._id}>
-                          {cliente.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="fechaVenta">Fecha de Venta</Label>
-                  <Input
-                    id="fechaVenta"
-                    type="date"
-                    value={newVenta.fechaVenta}
-                    onChange={(e) =>
-                      setNewVenta({ ...newVenta, fechaVenta: e.target.value })
-                    }
-                    max={getCurrentDate()}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Productos</Label>
-                  {newVenta.productos.map((producto, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center space-x-2 mb-2"
-                    >
-                      <span>{producto.productoId.nombre}</span>
-                      <div className="flex flex-col">
-                        <Label htmlFor={`cantidad-${index}`}>Cantidad</Label>
-                        <Input
-                          id={`cantidad-${index}`}
-                          type="number"
-                          value={producto.cantidad}
-                          onChange={(e) =>
-                            handleProductChange(
-                              index,
-                              "cantidad",
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          placeholder="Cantidad"
-                          className="w-20"
-                          min="0.01"
-                          step="0.01"
-                          max={producto.productoId.cantidadDisponible}
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <Label htmlFor={`precio-${index}`}>Precio</Label>
-                        <Input
-                          id={`precio-${index}`}
-                          type="number"
-                          value={producto.precio}
-                          onChange={(e) =>
-                            handleProductChange(
-                              index,
-                              "precio",
-                              parseFloat(e.target.value)
-                            )
-                          }
-                          placeholder="Precio"
-                          className="w-20"
-                          min="0.01"
-                          step="0.01"
-                        />
-                      </div>
-                      <span>Subtotal: Bs.{producto.subtotal.toFixed(2)}</span>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleRemoveProductFromVenta(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Select
-                    onValueChange={(value) => {
-                      const producto = productos.find((p) => p._id === value);
-                      if (producto) {
-                        handleAddProductToVenta(producto);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Agregar producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productos.map((producto) => (
-                        <SelectItem key={producto._id} value={producto._id}>
-                          {producto.nombre} (Disponible:{" "}
-                          {producto.cantidadDisponible})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="pago">Pago Inicial</Label>
-                  <Input
-                    id="pago"
-                    type="number"
-                    value={newVenta.pago}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      const total = calculateTotal(newVenta.productos);
-                      setNewVenta({
-                        ...newVenta,
-                        pago: Math.min(Math.max(0, value), total),
-                      });
-                    }}
-                    min="0"
-                    max={calculateTotal(newVenta.productos)}
-                    step="0.01"
-                    required
-                  />
-                </div>
-                <div>
-                  <p>
-                    Total: Bs.{calculateTotal(newVenta.productos).toFixed(2)}
-                  </p>
-                  <p>
-                    Saldo: Bs.
-                    {(
-                      calculateTotal(newVenta.productos) - newVenta.pago
-                    ).toFixed(2)}
-                  </p>
-                </div>
-                <Button type="submit" className="w-full mb-5">
-                  Registrar Venta
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Gestión de Ventas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="mb-5">
+                  <Plus className="mr-2 h-4 w-4" /> Nueva Venta
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog
-            open={isPaymentDialogOpen}
-            onOpenChange={setIsPaymentDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button className="mb-5 ml-2">
-                <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Registrar Pago</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddPayment} className="space-y-4">
-                <div>
-                  <Label htmlFor="cliente">Cliente</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      setNewPayment({
-                        ...newPayment,
-                        clienteId: value,
-                        ventaId: "none",
-                        montoPago: 0,
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes
-                        .filter((cliente) =>
-                          clientesConDeuda.includes(cliente._id)
-                        )
-                        .map((cliente) => (
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Registrar Nueva Venta</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddVenta} className="space-y-4">
+                  <div>
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setNewVenta({ ...newVenta, clienteId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((cliente) => (
                           <SelectItem key={cliente._id} value={cliente._id}>
                             {cliente.nombre}
                           </SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {newPayment.clienteId && (
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
-                    <Label htmlFor="venta">Venta (Opcional)</Label>
+                    <Label htmlFor="fechaVenta">Fecha de Venta</Label>
+                    <Input
+                      id="fechaVenta"
+                      type="date"
+                      value={newVenta.fechaVenta}
+                      onChange={(e) =>
+                        setNewVenta({ ...newVenta, fechaVenta: e.target.value })
+                      }
+                      max={getCurrentDate()}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Productos</Label>
+                    {newVenta.productos.map((producto, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 mb-2"
+                      >
+                        <span>{producto.productoId.nombre}</span>
+                        <div className="flex flex-col">
+                          <Label htmlFor={`cantidad-${index}`}>Cantidad</Label>
+                          <Input
+                            id={`cantidad-${index}`}
+                            type="number"
+                            value={producto.cantidad}
+                            onChange={(e) =>
+                              handleProductChange(
+                                index,
+                                "cantidad",
+                                parseFloat(e.target.value)
+                              )
+                            }
+                            placeholder="Cantidad"
+                            className="w-20"
+                            min="0.01"
+                            step="0.01"
+                            max={producto.productoId.cantidadDisponible}
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <Label htmlFor={`precio-${index}`}>Precio</Label>
+                          <Input
+                            id={`precio-${index}`}
+                            type="number"
+                            value={producto.precio}
+                            onChange={(e) =>
+                              handleProductChange(
+                                index,
+                                "precio",
+                                parseFloat(e.target.value)
+                              )
+                            }
+                            placeholder="Precio"
+                            className="w-20"
+                            min="0.01"
+                            step="0.01"
+                          />
+                        </div>
+                        <span>Subtotal: Bs.{producto.subtotal.toFixed(2)}</span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemoveProductFromVenta(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                     <Select
-                      value={newPayment.ventaId}
                       onValueChange={(value) => {
-                        if (value === "none") {
-                          setNewPayment({
-                            ...newPayment,
-                            ventaId: "none",
-                            montoPago: 0,
-                          });
-                        } else {
-                          const selectedVenta = ventas.find(
-                            (v) => v._id === value
-                          );
-                          setNewPayment({
-                            ...newPayment,
-                            ventaId: value,
-                            montoPago: selectedVenta ? selectedVenta.saldo : 0,
-                          });
+                        const producto = productos.find((p) => p._id === value);
+                        if (producto) {
+                          handleAddProductToVenta(producto);
                         }
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar venta" />
+                        <SelectValue placeholder="Agregar producto" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">
-                          Ninguna venta específica
-                        </SelectItem>
-                        {ventas
-                          .filter(
-                            (venta) =>
-                              venta.clienteId._id === newPayment.clienteId &&
-                              venta.saldo > 0
+                        {productos.map((producto) => (
+                          <SelectItem key={producto._id} value={producto._id}>
+                            {producto.nombre} (Disponible:{" "}
+                            {producto.cantidadDisponible})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="pago">Pago Inicial</Label>
+                    <Input
+                      id="pago"
+                      type="number"
+                      value={newVenta.pago}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        const total = calculateTotal(newVenta.productos);
+                        setNewVenta({
+                          ...newVenta,
+                          pago: Math.min(Math.max(0, value), total),
+                        });
+                      }}
+                      min="0"
+                      max={calculateTotal(newVenta.productos)}
+                      step="0.01"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <p>
+                      Total: Bs.{calculateTotal(newVenta.productos).toFixed(2)}
+                    </p>
+                    <p>
+                      Saldo: Bs.
+                      {(
+                        calculateTotal(newVenta.productos) - newVenta.pago
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full mb-5"
+                    disabled={isAddingVenta}
+                  >
+                    {isAddingVenta ? "Registrando..." : "Registrar Venta"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={isPaymentDialogOpen}
+              onOpenChange={setIsPaymentDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="mb-5 ml-2">
+                  <DollarSign className="mr-2 h-4 w-4" /> Registrar Pago
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Registrar Pago</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddPayment} className="space-y-4">
+                  <div>
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        setNewPayment({
+                          ...newPayment,
+                          clienteId: value,
+                          ventaId: "none",
+                          montoPago: 0,
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes
+                          .filter((cliente) =>
+                            clientesConDeuda.includes(cliente._id)
                           )
-                          .map((venta) => (
-                            <SelectItem key={venta._id} value={venta._id}>
-                              {formatDate(venta.fechaVenta)} - Saldo: Bs.
-                              {venta.saldo.toFixed(2)}
+                          .map((cliente) => (
+                            <SelectItem key={cliente._id} value={cliente._id}>
+                              {cliente.nombre}
                             </SelectItem>
                           ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-                <div>
-                  <Label htmlFor="montoPago">Monto del Pago</Label>
-                  <Input
-                    id="montoPago"
-                    type="number"
-                    value={newPayment.montoPago}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (newPayment.ventaId === "none") {
-                        const clienteVentas = ventas.filter(
-                          (v) => v.clienteId._id === newPayment.clienteId
-                        );
-                        const totalSaldo = clienteVentas.reduce(
-                          (sum, v) => sum + v.saldo,
-                          0
-                        );
+                  {newPayment.clienteId && (
+                    <div>
+                      <Label htmlFor="venta">Venta (Opcional)</Label>
+                      <Select
+                        value={newPayment.ventaId}
+                        onValueChange={(value) => {
+                          if (value === "none") {
+                            setNewPayment({
+                              ...newPayment,
+                              ventaId: "none",
+                              montoPago: 0,
+                            });
+                          } else {
+                            const selectedVenta = ventas.find(
+                              (v) => v._id === value
+                            );
+                            setNewPayment({
+                              ...newPayment,
+                              ventaId: value,
+                              montoPago: selectedVenta
+                                ? selectedVenta.saldo
+                                : 0,
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar venta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            Ninguna venta específica
+                          </SelectItem>
+                          {ventas
+                            .filter(
+                              (venta) =>
+                                venta.clienteId._id === newPayment.clienteId &&
+                                venta.saldo > 0
+                            )
+                            .map((venta) => (
+                              <SelectItem key={venta._id} value={venta._id}>
+                                {formatDate(venta.fechaVenta)} - Saldo: Bs.
+                                {venta.saldo.toFixed(2)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div>
+                    <Label htmlFor="montoPago">Monto del Pago</Label>
+                    <Input
+                      id="montoPago"
+                      type="number"
+                      value={newPayment.montoPago}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (newPayment.ventaId === "none") {
+                          const clienteVentas = ventas.filter(
+                            (v) => v.clienteId._id === newPayment.clienteId
+                          );
+                          const totalSaldo = clienteVentas.reduce(
+                            (sum, v) => sum + v.saldo,
+                            0
+                          );
+                          setNewPayment({
+                            ...newPayment,
+                            montoPago: Math.min(Math.max(0, value), totalSaldo),
+                          });
+                        }
+                      }}
+                      min="0.01"
+                      step="0.01"
+                      required
+                      disabled={newPayment.ventaId !== "none"}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fechaPago">Fecha del Pago</Label>
+                    <Input
+                      id="fechaPago"
+                      type="date"
+                      value={newPayment.fechaPago}
+                      onChange={(e) =>
                         setNewPayment({
                           ...newPayment,
-                          montoPago: Math.min(Math.max(0, value), totalSaldo),
-                        });
+                          fechaPago: e.target.value,
+                        })
                       }
-                    }}
-                    min="0.01"
-                    step="0.01"
-                    required
-                    disabled={newPayment.ventaId !== "none"}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="fechaPago">Fecha del Pago</Label>
-                  <Input
-                    id="fechaPago"
-                    type="date"
-                    value={newPayment.fechaPago}
-                    onChange={(e) =>
-                      setNewPayment({
-                        ...newPayment,
-                        fechaPago: e.target.value,
-                      })
-                    }
-                    max={getCurrentDate()}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full mb-5">
-                  Registrar Pago
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <div className="hidden md:block overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Pagado</TableHead>
-                  <TableHead>Saldo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ventas.map((venta) => (
-                  <TableRow key={venta._id}>
-                    <TableCell>{venta.clienteId.nombre}</TableCell>
-                    <TableCell>{formatDate(venta.fechaVenta)}</TableCell>
-                    <TableCell>Bs.{venta.total.toFixed(2)}</TableCell>
-                    <TableCell>Bs.{venta.montoPagado.toFixed(2)}</TableCell>
-                    <TableCell>Bs.{venta.saldo.toFixed(2)}</TableCell>
-                    <TableCell>{venta.estado}</TableCell>
-                    <TableCell>
+                      max={getCurrentDate()}
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full mb-5"
+                    disabled={isAddingPayment}
+                  >
+                    {isAddingPayment ? "Registrando..." : "Registrar Pago"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Pagado</TableHead>
+                    <TableHead>Saldo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ventas.map((venta) => (
+                    <TableRow key={venta._id}>
+                      <TableCell>{venta.clienteId.nombre}</TableCell>
+                      <TableCell>{formatDate(venta.fechaVenta)}</TableCell>
+                      <TableCell>Bs.{venta.total.toFixed(2)}</TableCell>
+                      <TableCell>Bs.{venta.montoPagado.toFixed(2)}</TableCell>
+                      <TableCell>Bs.{venta.saldo.toFixed(2)}</TableCell>
+                      <TableCell>{venta.estado}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCurrentVenta(venta);
+                            setIsDetailsDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" /> Ver Detalles
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden space-y-4">
+              {ventas.map((venta) => (
+                <Card key={venta._id}>
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <p>
+                        <strong>Cliente:</strong> {venta.clienteId.nombre}
+                      </p>
+                      <p>
+                        <strong>Fecha:</strong> {formatDate(venta.fechaVenta)}
+                      </p>
+                      <p>
+                        <strong>Total:</strong> Bs.{venta.total.toFixed(2)}
+                      </p>
+                      <p>
+                        <strong>Pagado:</strong> Bs.
+                        {venta.montoPagado.toFixed(2)}
+                      </p>
+                      <p>
+                        <strong>Saldo:</strong> Bs.{venta.saldo.toFixed(2)}
+                      </p>
+                      <p>
+                        <strong>Estado:</strong> {venta.estado}
+                      </p>
                       <Button
                         variant="outline"
                         size="sm"
@@ -699,112 +761,77 @@ export default function VentasPage() {
                       >
                         <Eye className="h-4 w-4 mr-2" /> Ver Detalles
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="md:hidden space-y-4">
-            {ventas.map((venta) => (
-              <Card key={venta._id}>
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <p>
-                      <strong>Cliente:</strong> {venta.clienteId.nombre}
-                    </p>
-                    <p>
-                      <strong>Fecha:</strong> {formatDate(venta.fechaVenta)}
-                    </p>
-                    <p>
-                      <strong>Total:</strong> Bs.{venta.total.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong>Pagado:</strong> Bs.{venta.montoPagado.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong>Saldo:</strong> Bs.{venta.saldo.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong>Estado:</strong> {venta.estado}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setCurrentVenta(venta);
-                        setIsDetailsDialogOpen(true);
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" /> Ver Detalles
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>Detalles de la Venta</DialogTitle>
-          </DialogHeader>
-          {currentVenta && (
-            <div className="space-y-4">
-              <p>
-                <strong>Cliente:</strong> {currentVenta.clienteId.nombre}
-              </p>
-              <p>
-                <strong>Fecha de Venta:</strong>{" "}
-                {formatDate(currentVenta.fechaVenta)}
-              </p>
-              <p>
-                <strong>Total:</strong> Bs.{currentVenta.total.toFixed(2)}
-              </p>
-              <p>
-                <strong>Pago Inicial:</strong> Bs.
-                {currentVenta.montoPagado.toFixed(2)}
-              </p>
-              <p>
-                <strong>Saldo:</strong> Bs.{currentVenta.saldo.toFixed(2)}
-              </p>
-              <p>
-                <strong>Estado:</strong> {currentVenta.estado}
-              </p>
-              <div>
-                <h4 className="font-bold mb-2">Productos:</h4>
-                <ul className="list-disc pl-5">
-                  {currentVenta.productos.map((producto, index) => (
-                    <li key={index}>
-                      {producto.productoId.nombre} - Cantidad:{" "}
-                      {producto.cantidad}, Precio: Bs.
-                      {producto.precio.toFixed(2)}, Subtotal: Bs.
-                      {producto.subtotal.toFixed(2)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold mb-2">Pagos Realizados:</h4>
-                {currentVenta.pagos && currentVenta.pagos.length > 0 ? (
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Dialog
+          open={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+        >
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>Detalles de la Venta</DialogTitle>
+            </DialogHeader>
+            {currentVenta && (
+              <div className="space-y-4">
+                <p>
+                  <strong>Cliente:</strong> {currentVenta.clienteId.nombre}
+                </p>
+                <p>
+                  <strong>Fecha de Venta:</strong>{" "}
+                  {formatDate(currentVenta.fechaVenta)}
+                </p>
+                <p>
+                  <strong>Total:</strong> Bs.{currentVenta.total.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Pago Inicial:</strong> Bs.
+                  {currentVenta.montoPagado.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Saldo:</strong> Bs.{currentVenta.saldo.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Estado:</strong> {currentVenta.estado}
+                </p>
+                <div>
+                  <h4 className="font-bold mb-2">Productos:</h4>
                   <ul className="list-disc pl-5">
-                    {currentVenta.pagos.map((pago, index) => (
+                    {currentVenta.productos.map((producto, index) => (
                       <li key={index}>
-                        Monto: Bs.{pago.monto.toFixed(2)}, Fecha:{" "}
-                        {formatDate(pago.fecha)}
+                        {producto.productoId.nombre} - Cantidad:{" "}
+                        {producto.cantidad}, Precio: Bs.
+                        {producto.precio.toFixed(2)}, Subtotal: Bs.
+                        {producto.subtotal.toFixed(2)}
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p>No se han realizado pagos aún.</p>
-                )}
+                </div>
+                <div>
+                  <h4 className="font-bold mb-2">Pagos Realizados:</h4>
+                  {currentVenta.pagos && currentVenta.pagos.length > 0 ? (
+                    <ul className="list-disc pl-5">
+                      {currentVenta.pagos.map((pago, index) => (
+                        <li key={index}>
+                          Monto: Bs.{pago.monto.toFixed(2)}, Fecha:{" "}
+                          {formatDate(pago.fecha)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No se han realizado pagos aún.</p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      <Toaster />
-    </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        <Toaster />
+      </div>
+    </>
   );
 }

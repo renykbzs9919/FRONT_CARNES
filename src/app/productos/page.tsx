@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Package, Edit, Trash2, Plus } from "lucide-react";
+import { LoadingSpinner } from "@/components/LoadingSpinnerGuardar";
 
 interface Producto {
   _id: string;
@@ -37,12 +38,17 @@ export default function ProductosPage() {
     nombre: "",
     cantidadDisponible: 0,
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchProductos();
   }, []);
 
   const fetchProductos = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/productos`
@@ -54,11 +60,14 @@ export default function ProductosPage() {
       setProductos(data);
     } catch (error) {
       console.error("Error fetching products:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAddProducto = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAdding(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/productos`,
@@ -76,12 +85,15 @@ export default function ProductosPage() {
       setNewProducto({ nombre: "", cantidadDisponible: 0 });
     } catch (error) {
       console.error("Error adding product:", error);
+    } finally {
+      setIsAdding(false);
     }
   };
 
   const handleEditProducto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProducto) return;
+    setIsEditing(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/productos/${currentProducto._id}`,
@@ -98,12 +110,15 @@ export default function ProductosPage() {
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating product:", error);
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleDeleteProducto = async (id: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este producto?"))
       return;
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/productos/${id}`,
@@ -117,11 +132,14 @@ export default function ProductosPage() {
       await fetchProductos();
     } catch (error) {
       console.error("Error deleting product:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      {(isAdding || isEditing || isDeleting) && <LoadingSpinner />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Productos</h1>
         <div className="flex items-center space-x-4">
@@ -172,8 +190,12 @@ export default function ProductosPage() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full mb-5">
-                  Guardar
+                <Button
+                  type="submit"
+                  className="w-full mb-5"
+                  disabled={isAdding}
+                >
+                  {isAdding ? "Guardando..." : "Guardar"}
                 </Button>
               </form>
             </DialogContent>
@@ -256,8 +278,14 @@ export default function ProductosPage() {
                                     required
                                   />
                                 </div>
-                                <Button type="submit" className="w-full mb-5">
-                                  Guardar Cambios
+                                <Button
+                                  type="submit"
+                                  className="w-full mb-5"
+                                  disabled={isEditing}
+                                >
+                                  {isEditing
+                                    ? "Guardando..."
+                                    : "Guardar Cambios"}
                                 </Button>
                               </form>
                             )}
@@ -268,6 +296,7 @@ export default function ProductosPage() {
                           size="sm"
                           className="mb-5 bg-red-500 hover:bg-red-600"
                           onClick={() => handleDeleteProducto(producto._id)}
+                          disabled={isDeleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -348,8 +377,12 @@ export default function ProductosPage() {
                                   required
                                 />
                               </div>
-                              <Button type="submit" className="w-full mb-5">
-                                Guardar Cambios
+                              <Button
+                                type="submit"
+                                className="w-full mb-5"
+                                disabled={isEditing}
+                              >
+                                {isEditing ? "Guardando..." : "Guardar Cambios"}
                               </Button>
                             </form>
                           )}
@@ -360,6 +393,7 @@ export default function ProductosPage() {
                         size="sm"
                         className="bg-red-500 hover:bg-red-600"
                         onClick={() => handleDeleteProducto(producto._id)}
+                        disabled={isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

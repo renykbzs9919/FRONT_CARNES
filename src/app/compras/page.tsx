@@ -30,6 +30,7 @@ import {
 import { ShoppingCart, Trash2, Plus, DollarSign, Eye } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import { showAlert } from "@/utils/alerts";
+import { LoadingSpinner } from "@/components/LoadingSpinnerGuardar";
 
 interface Producto {
   _id: string;
@@ -110,6 +111,8 @@ export default function ComprasPage() {
     fechaPago: getCurrentDate(),
   });
   const [proveedoresConDeuda, setProveedoresConDeuda] = useState<string[]>([]);
+  const [isAddingCompra, setIsAddingCompra] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
 
   useEffect(() => {
     fetchCompras();
@@ -175,8 +178,10 @@ export default function ComprasPage() {
 
   const handleAddCompra = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAddingCompra(true);
     if (newCompra.proveedorId === "" || newCompra.productos.length === 0) {
       showAlert("Por favor, complete todos los campos requeridos.", "error");
+      setIsAddingCompra(false);
       return;
     }
     if (newCompra.productos.some((p) => p.cantidad <= 0 || p.precio <= 0)) {
@@ -184,6 +189,7 @@ export default function ComprasPage() {
         "La cantidad y el precio de los productos deben ser mayores que cero.",
         "error"
       );
+      setIsAddingCompra(false);
       return;
     }
     if (
@@ -194,6 +200,7 @@ export default function ComprasPage() {
         "El pago inicial no puede ser negativo ni exceder el total de la compra.",
         "error"
       );
+      setIsAddingCompra(false);
       return;
     }
     try {
@@ -223,16 +230,20 @@ export default function ComprasPage() {
         "Error al agregar la compra. Por favor, intente de nuevo.",
         "error"
       );
+    } finally {
+      setIsAddingCompra(false);
     }
   };
 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAddingPayment(true);
     if (newPayment.proveedorId === "" || newPayment.montoPago <= 0) {
       showAlert(
         "Por favor, seleccione un proveedor y especifique un monto de pago válido.",
         "error"
       );
+      setIsAddingPayment(false);
       return;
     }
 
@@ -246,6 +257,7 @@ export default function ComprasPage() {
         "El monto del pago no puede exceder el saldo total del proveedor.",
         "error"
       );
+      setIsAddingPayment(false);
       return;
     }
 
@@ -287,6 +299,8 @@ export default function ComprasPage() {
         "Error al registrar el pago. Por favor, intente de nuevo.",
         "error"
       );
+    } finally {
+      setIsAddingPayment(false);
     }
   };
 
@@ -337,6 +351,7 @@ export default function ComprasPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      {(isAddingCompra || isAddingPayment) && <LoadingSpinner />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Compras</h1>
         <div className="flex items-center space-x-4">
@@ -504,8 +519,12 @@ export default function ComprasPage() {
                     ).toFixed(2)}
                   </p>
                 </div>
-                <Button type="submit" className="w-full mb-5">
-                  Registrar Compra
+                <Button
+                  type="submit"
+                  className="w-full mb-5"
+                  disabled={isAddingCompra}
+                >
+                  {isAddingCompra ? "Registrando..." : "Registrar Compra"}
                 </Button>
               </form>
             </DialogContent>
@@ -645,8 +664,12 @@ export default function ComprasPage() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full mb-5">
-                  Registrar Pago
+                <Button
+                  type="submit"
+                  className="w-full mb-5"
+                  disabled={isAddingPayment}
+                >
+                  {isAddingPayment ? "Registrando..." : "Registrar Pago"}
                 </Button>
               </form>
             </DialogContent>

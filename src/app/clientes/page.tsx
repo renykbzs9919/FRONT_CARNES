@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Users, Edit, Trash2, Plus } from "lucide-react";
+import { LoadingSpinner } from "@/components/LoadingSpinnerGuardar";
 
 interface Cliente {
   _id: string;
@@ -39,12 +40,17 @@ export default function ClientesPage() {
     telefono: "",
     direccion: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchClientes();
   }, []);
 
   const fetchClientes = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/clientes`
@@ -56,11 +62,14 @@ export default function ClientesPage() {
       setClientes(data);
     } catch (error) {
       console.error("Error fetching clients:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAddCliente = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAdding(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/clientes`,
@@ -78,12 +87,15 @@ export default function ClientesPage() {
       setNewCliente({ nombre: "", telefono: "", direccion: "" });
     } catch (error) {
       console.error("Error adding client:", error);
+    } finally {
+      setIsAdding(false);
     }
   };
 
   const handleEditCliente = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentCliente) return;
+    setIsEditing(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/clientes/${currentCliente._id}`,
@@ -100,11 +112,14 @@ export default function ClientesPage() {
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating client:", error);
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleDeleteCliente = async (id: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este cliente?")) return;
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/clientes/${id}`,
@@ -118,11 +133,14 @@ export default function ClientesPage() {
       await fetchClientes();
     } catch (error) {
       console.error("Error deleting client:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      {(isAdding || isEditing || isDeleting) && <LoadingSpinner />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Clientes</h1>
         <div className="flex items-center space-x-4">
@@ -181,8 +199,12 @@ export default function ClientesPage() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full mb-5">
-                  Guardar
+                <Button
+                  type="submit"
+                  className="w-full mb-5"
+                  disabled={isAdding}
+                >
+                  {isAdding ? "Guardando..." : "Guardar"}
                 </Button>
               </form>
             </DialogContent>
@@ -280,8 +302,14 @@ export default function ClientesPage() {
                                     required
                                   />
                                 </div>
-                                <Button type="submit" className="w-full mb-5">
-                                  Guardar Cambios
+                                <Button
+                                  type="submit"
+                                  className="w-full mb-5"
+                                  disabled={isEditing}
+                                >
+                                  {isEditing
+                                    ? "Guardando..."
+                                    : "Guardar Cambios"}
                                 </Button>
                               </form>
                             )}
@@ -292,6 +320,7 @@ export default function ClientesPage() {
                           size="sm"
                           className="mb-5 bg-red-500 hover:bg-red-600"
                           onClick={() => handleDeleteCliente(cliente._id)}
+                          disabled={isDeleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -386,8 +415,12 @@ export default function ClientesPage() {
                                   required
                                 />
                               </div>
-                              <Button type="submit" className="w-full mb-5">
-                                Guardar Cambios
+                              <Button
+                                type="submit"
+                                className="w-full mb-5"
+                                disabled={isEditing}
+                              >
+                                {isEditing ? "Guardando..." : "Guardar Cambios"}
                               </Button>
                             </form>
                           )}
@@ -398,6 +431,7 @@ export default function ClientesPage() {
                         size="sm"
                         className="bg-red-500 hover:bg-red-600"
                         onClick={() => handleDeleteCliente(cliente._id)}
+                        disabled={isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

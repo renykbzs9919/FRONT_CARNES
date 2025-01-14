@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Users, Edit, Trash2, Plus } from "lucide-react";
+import { LoadingSpinner } from "@/components/LoadingSpinnerGuardar";
 
 interface Proveedor {
   _id: string;
@@ -41,12 +42,17 @@ export default function ProveedoresPage() {
     telefono: "",
     direccion: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchProveedores();
   }, []);
 
   const fetchProveedores = async () => {
+    setIsLoading(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/proveedores`
@@ -58,11 +64,14 @@ export default function ProveedoresPage() {
       setProveedores(data);
     } catch (error) {
       console.error("Error fetching proveedores:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAddProveedor = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAdding(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/proveedores`,
@@ -80,12 +89,15 @@ export default function ProveedoresPage() {
       setNewProveedor({ nombre: "", telefono: "", direccion: "" });
     } catch (error) {
       console.error("Error adding proveedor:", error);
+    } finally {
+      setIsAdding(false);
     }
   };
 
   const handleEditProveedor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProveedor) return;
+    setIsEditing(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${currentProveedor._id}`,
@@ -102,12 +114,15 @@ export default function ProveedoresPage() {
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating proveedor:", error);
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleDeleteProveedor = async (id: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este proveedor?"))
       return;
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${id}`,
@@ -121,11 +136,14 @@ export default function ProveedoresPage() {
       await fetchProveedores();
     } catch (error) {
       console.error("Error deleting proveedor:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      {(isAdding || isEditing || isDeleting) && <LoadingSpinner />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Proveedores</h1>
         <div className="flex items-center space-x-4">
@@ -140,7 +158,9 @@ export default function ProveedoresPage() {
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="mb-5">
-              <Plus className="mr-2 h-4 w-4" />Agregar Proveedor</Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Proveedor
+              </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -189,8 +209,12 @@ export default function ProveedoresPage() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full mb-5">
-                  Guardar
+                <Button
+                  type="submit"
+                  className="w-full mb-5"
+                  disabled={isAdding}
+                >
+                  {isAdding ? "Guardando..." : "Guardar"}
                 </Button>
               </form>
             </DialogContent>
@@ -288,8 +312,14 @@ export default function ProveedoresPage() {
                                     required
                                   />
                                 </div>
-                                <Button type="submit" className="w-full mb-5">
-                                  Guardar Cambios
+                                <Button
+                                  type="submit"
+                                  className="w-full mb-5"
+                                  disabled={isEditing}
+                                >
+                                  {isEditing
+                                    ? "Guardando..."
+                                    : "Guardar Cambios"}
                                 </Button>
                               </form>
                             )}
@@ -300,6 +330,7 @@ export default function ProveedoresPage() {
                           size="sm"
                           className="bg-red-500 hover:bg-red-600"
                           onClick={() => handleDeleteProveedor(proveedor._id)}
+                          disabled={isDeleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -394,8 +425,12 @@ export default function ProveedoresPage() {
                                   required
                                 />
                               </div>
-                              <Button type="submit" className="w-full mb-5">
-                                Guardar Cambios
+                              <Button
+                                type="submit"
+                                className="w-full mb-5"
+                                disabled={isEditing}
+                              >
+                                {isEditing ? "Guardando..." : "Guardar Cambios"}
                               </Button>
                             </form>
                           )}
@@ -406,6 +441,7 @@ export default function ProveedoresPage() {
                         size="sm"
                         className="bg-red-500 hover:bg-red-600"
                         onClick={() => handleDeleteProveedor(proveedor._id)}
+                        disabled={isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
